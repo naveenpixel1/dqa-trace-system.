@@ -1,12 +1,16 @@
 const { z } = require('zod');
 
-// This defines exactly what a valid production entry looks like
+// Schema for production inspection logs
 const logSchema = z.object({
-  tenant_id: z.string().uuid('Invalid Tenant ID format.'),
-  station_id: z.string().uuid('Invalid Station ID format.'),
+  tenant_id: z.string().min(1, 'Tenant ID is required'),
+  station_id: z.string().min(1, 'Station ID is required'),
   status: z.enum(['PASS', 'FAIL', 'REWORK'], {
     errorMap: () => ({ message: "Status must be PASS, FAIL, or REWORK." })
   }),
+  shift: z.string().optional(),
+  operator_name: z.string().optional(),
+  serial_number: z.string().optional(),
+  defects: z.array(z.string()).optional(),
   notes: z.string().optional()
 });
 

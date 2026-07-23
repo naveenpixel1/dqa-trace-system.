@@ -1,21 +1,46 @@
 const { supabase } = require('../config/supabase');
+const { addLog } = require('../store/logStore');
+const { checkSpikeAlert } = require('../store/alertStore');
 
 const createProductionLog = async (req, res) => {
   try {
-    const { tenant_id, station_id, status, notes } = req.body;
+    const { tenant_id, station_id, status, notes, shift, operator_name, serial_number, defects } = req.body;
 
-    // Send the data directly down to our Supabase database table
-    const { data, error } = await supabase
-      .from('production_logs')
-      .insert([{ tenant_id, station_id, status, notes }])
-      .select();
+    // 1. Save in in-memory store for instant analytics
+    const localRecord = addLog({
+      tenant_id,
+      station_id,
+      status,
+      notes,
+      shift,
+      operator_name,
+      serial_number,
+      defects
+    });
 
-    if (error) throw error;
+    // 2. Automatically evaluate 3-consecutive-FAIL spike threshold rule on station
+    const triggeredAlert = checkSpikeAlert(station_id, tenant_id);
 
-    // Send back a success message in a standardized format
+    let dbData = localRecord;
+
+    // Send data to Supabase if available
+    try {
+      const { data, error } = await supabase
+        .from('production_logs')
+        .insert([{ tenant_id, station_id, status, notes }])
+        .select();
+
+      if (!error && data && data.length > 0) {
+        dbData = { ...localRecord, ...data[0] };
+      }
+    } catch (dbErr) {
+      console.warn('Supabase insert warning (using local store):', dbErr.message);
+    }
+
     return res.status(201).json({
       success: true,
-      data: data[0],
+      data: dbData,
+      triggeredAlert: triggeredAlert || null,
       error: null,
       timestamp: new Date().toISOString()
     });
