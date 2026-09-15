@@ -1,9 +1,14 @@
 // In-memory store for real-time shift analytics and offline resilience
 const shiftLogs = [];
+const MAX_LOGS = 10000; // Rolling memory ring buffer limit
+let logSequenceCounter = 0;
 
 const addLog = (logEntry) => {
+  const now = new Date();
   const record = {
-    id: `LOG-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    id: `LOG-${now.getTime()}-${Math.floor(Math.random() * 1000)}`,
+    seq: ++logSequenceCounter,
+    timestamp: now.getTime(),
     tenant_id: logEntry.tenant_id,
     station_id: logEntry.station_id,
     shift: logEntry.shift || 'Shift A (Day)',
@@ -12,9 +17,16 @@ const addLog = (logEntry) => {
     serial_number: logEntry.serial_number || '',
     defects: Array.isArray(logEntry.defects) ? logEntry.defects : [],
     notes: logEntry.notes || '',
-    created_at: new Date().toISOString()
+    created_at: now.toISOString()
   };
+  
   shiftLogs.push(record);
+  
+  // Enforce bounded memory retention to prevent OOM on rapid edge ingestion
+  if (shiftLogs.length > MAX_LOGS) {
+    shiftLogs.splice(0, shiftLogs.length - MAX_LOGS);
+  }
+
   return record;
 };
 

@@ -9,7 +9,7 @@ const processEdgeSensorData = async (req, res) => {
     const authKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
 
     // Validate API Key for secure IoT device ingestion
-    if (authKey !== EDGE_API_KEY && authKey !== 'dqa-edge-secret-2026') {
+    if (!authKey || authKey !== EDGE_API_KEY) {
       return res.status(401).json({
         success: false,
         error: 'Unauthorized Edge Device. Invalid or missing x-api-key header.'
@@ -106,7 +106,7 @@ const simulateSensorEvent = async (req, res) => {
     const deviceObj = edgeDevices.find(d => d.deviceId === deviceId) || edgeDevices[0];
 
     // Mock API call to processEdgeSensorData internally
-    req.headers['x-api-key'] = 'dqa-edge-secret-2026';
+    req.headers['x-api-key'] = EDGE_API_KEY;
     req.body = {
       deviceId: deviceObj.deviceId,
       stationId: deviceObj.assignedStation,

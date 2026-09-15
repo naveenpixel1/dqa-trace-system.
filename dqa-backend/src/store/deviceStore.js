@@ -49,6 +49,7 @@ const edgeDevices = [
 ];
 
 const edgeTelemetryLogs = [];
+const MAX_TELEMETRY = 1000;
 
 const logEdgeEvent = (eventData) => {
   const record = {
@@ -56,7 +57,11 @@ const logEdgeEvent = (eventData) => {
     ...eventData,
     receivedAt: new Date().toISOString()
   };
+  
   edgeTelemetryLogs.unshift(record);
+  if (edgeTelemetryLogs.length > MAX_TELEMETRY) {
+    edgeTelemetryLogs.length = MAX_TELEMETRY;
+  }
 
   // Update heartbeat in device registry
   const dev = edgeDevices.find(d => d.deviceId === eventData.deviceId);

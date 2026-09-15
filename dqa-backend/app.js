@@ -21,8 +21,28 @@ const {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json());
+// Production CORS Configuration
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
+  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser requests (IoT devices, curl, server-to-server) without Origin header
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS policy violation: Origin '${origin}' is not authorized.`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'X-Requested-With'],
+  exposedHeaders: ['x-api-key']
+}));
+
+// Body parser with size boundary to prevent denial-of-service memory pressure
+app.use(express.json({ limit: '1mb' }));
 
 // Status health route
 app.get('/status', (req, res) => {
@@ -48,6 +68,45 @@ app.post('/api/alerts/:id/resolve', handleResolveAlert);
 app.post('/api/v1/edge-sensor', processEdgeSensorData);
 app.get('/api/v1/edge-devices', getEdgeDevices);
 app.post('/api/v1/edge-simulator/trigger', simulateSensorEvent);
+
+// Centralized JSON 404 Handler for undefined routes
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `Endpoint '${req.method} ${req.originalUrl}' not found.`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Centralized Express 5 Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled API Error:', err);
+
+  // Catch invalid JSON syntax from express.json()
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({
+      success: false,
+      error: 'Malformed JSON payload in request body.',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Catch CORS errors
+  if (err.message && err.message.includes('CORS')) {
+    return res.status(403).json({
+      success: false,
+      error: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  const statusCode = err.status || err.statusCode || 500;
+  return res.status(statusCode).json({
+    success: false,
+    error: process.env.NODE_ENV === 'production' ? 'Internal server error occurred.' : (err.message || 'Internal server error'),
+    timestamp: new Date().toISOString()
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running successfully on port ${PORT}`);

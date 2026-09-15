@@ -15,14 +15,33 @@ const logSchema = z.object({
 });
 
 const validateLogInput = (req, res, next) => {
-  const result = logSchema.safeParse(req.body);
-  if (!result.success) {
+  if (!req.body || typeof req.body !== 'object') {
     return res.status(400).json({
       success: false,
-      errors: result.error.errors.map(err => err.message)
+      error: 'Invalid or missing request body',
+      errors: ['Request body must be a valid JSON object'],
+      timestamp: new Date().toISOString()
     });
   }
-  next(); // Data is clean! Pass it to the controller.
+
+  const result = logSchema.safeParse(req.body);
+  if (!result.success) {
+    const issues = result.error.issues || result.error.errors || [];
+    const formattedErrors = issues.map(err => {
+      const field = err.path && err.path.length > 0 ? `${err.path.join('.')}: ` : '';
+      return `${field}${err.message}`;
+    });
+
+    return res.status(400).json({
+      success: false,
+      error: 'Validation failed',
+      errors: formattedErrors,
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  req.body = result.data; // Coerced and validated clean data
+  next();
 };
 
 module.exports = { validateLogInput };

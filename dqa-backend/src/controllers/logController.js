@@ -24,17 +24,19 @@ const createProductionLog = async (req, res) => {
     let dbData = localRecord;
 
     // Send data to Supabase if available
-    try {
-      const { data, error } = await supabase
-        .from('production_logs')
-        .insert([{ tenant_id, station_id, status, notes }])
-        .select();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('production_logs')
+          .insert([{ tenant_id, station_id, status, notes }])
+          .select();
 
-      if (!error && data && data.length > 0) {
-        dbData = { ...localRecord, ...data[0] };
+        if (!error && data && data.length > 0) {
+          dbData = { ...localRecord, ...data[0] };
+        }
+      } catch (dbErr) {
+        console.warn('Supabase insert warning (using local store):', dbErr.message);
       }
-    } catch (dbErr) {
-      console.warn('Supabase insert warning (using local store):', dbErr.message);
     }
 
     return res.status(201).json({

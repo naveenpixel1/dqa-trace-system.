@@ -22,7 +22,7 @@ export default function CameraScannerModal({ isOpen, onClose, onScanSuccess }) {
       setIsScanning(true);
 
       try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        if (typeof window === 'undefined' || typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           throw new Error('Web Camera API is not supported in this browser environment.');
         }
 
@@ -36,7 +36,9 @@ export default function CameraScannerModal({ isOpen, onClose, onScanSuccess }) {
 
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
-          videoRef.current.play();
+          videoRef.current.play().catch((playErr) => {
+            console.warn('Video playback interrupted or prevented:', playErr.message);
+          });
         }
       } catch (err) {
         console.warn('Camera access warning:', err.message);
