@@ -30,9 +30,20 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow non-browser requests (IoT devices, curl, server-to-server) without Origin header
     if (!origin) return callback(null, true);
+    
+    // Explicit origin check
     if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
+
+    // Allow Vercel preview & production deployments (*.vercel.app)
+    try {
+      const parsedUrl = new URL(origin);
+      if (parsedUrl.hostname.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+    } catch (_) {}
+
     return callback(new Error(`CORS policy violation: Origin '${origin}' is not authorized.`));
   },
   credentials: true,
@@ -108,6 +119,11 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running successfully on port ${PORT}`);
-});
+// Start HTTP server only in standalone / local mode (Vercel invokes the handler directly)
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server is running successfully on port ${PORT}`);
+  });
+}
+
+module.exports = app;

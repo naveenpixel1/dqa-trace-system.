@@ -1,4 +1,4 @@
-const { shiftLogs } = require('../store/logStore');
+const { getAllLogs, shiftLogs } = require('../store/logStore');
 const { getAlerts, acknowledgeAlert, resolveAlert } = require('../store/alertStore');
 const { STATIONS, TENANTS } = require('../store/assetStore');
 
@@ -6,17 +6,7 @@ const getParetoAnalytics = async (req, res) => {
   try {
     const { tenant_id, station_id, shift, dateRange = 'all' } = req.query;
 
-    let filtered = shiftLogs;
-
-    if (tenant_id) {
-      filtered = filtered.filter(l => l.tenant_id === tenant_id);
-    }
-    if (station_id) {
-      filtered = filtered.filter(l => l.station_id === station_id);
-    }
-    if (shift) {
-      filtered = filtered.filter(l => l.shift === shift);
-    }
+    let filtered = await getAllLogs({ tenant_id, station_id, shift });
 
     // Filter by date range
     if (dateRange === 'today') {
@@ -144,7 +134,7 @@ const getParetoAnalytics = async (req, res) => {
 const getQualityAlerts = async (req, res) => {
   try {
     const { status, station_id } = req.query;
-    const alerts = getAlerts({ status, station_id });
+    const alerts = await getAlerts({ status, station_id });
     return res.status(200).json({
       success: true,
       data: alerts,
@@ -163,7 +153,7 @@ const handleAcknowledgeAlert = async (req, res) => {
   try {
     const { id } = req.params;
     const { user = 'Supervisor' } = req.body;
-    const alert = acknowledgeAlert(id, user);
+    const alert = await acknowledgeAlert(id, user);
 
     if (!alert) {
       return res.status(404).json({ success: false, error: 'Alert not found' });
@@ -179,7 +169,7 @@ const handleResolveAlert = async (req, res) => {
   try {
     const { id } = req.params;
     const { notes } = req.body;
-    const alert = resolveAlert(id, notes);
+    const alert = await resolveAlert(id, notes);
 
     if (!alert) {
       return res.status(404).json({ success: false, error: 'Alert not found' });

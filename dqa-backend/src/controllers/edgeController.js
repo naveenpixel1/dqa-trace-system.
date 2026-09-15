@@ -47,7 +47,7 @@ const processEdgeSensorData = async (req, res) => {
     });
 
     // Automatically create production inspection log entry
-    const inspectionLog = addLog({
+    const inspectionLog = await addLog({
       tenant_id: tenantId,
       station_id: stationId,
       shift: 'Shift A (06:00 - 14:00)',
@@ -59,7 +59,7 @@ const processEdgeSensorData = async (req, res) => {
     });
 
     // Automatically evaluate 3-consecutive-FAIL spike alert threshold
-    const triggeredAlert = checkSpikeAlert(stationId, tenantId);
+    const triggeredAlert = await checkSpikeAlert(stationId, tenantId);
 
     return res.status(201).json({
       success: true,
